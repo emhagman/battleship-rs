@@ -17,6 +17,13 @@ enum Player {
     Human,
     Computer,
 }
+
+#[derive(Copy, Clone, PartialEq, Debug)]
+enum Direction {
+    Horizontal,
+    Vertical,
+    None
+}
 impl Player {
     fn inverse(&self) -> Player {
         if *self == Player::Computer {
@@ -25,17 +32,23 @@ impl Player {
             Player::Computer
         }
     }
-    fn guess(&self) -> (usize, usize) {
+    fn collect_input_location(&self, need_direction: bool) -> (usize, usize, Direction) {
         if *self == Player::Computer {
             let guess_row: usize = rand::random::<usize>() % 10;
             let guess_col: usize = rand::random::<usize>() % 10;
-            println!("{:?}, {:?}", guess_row, guess_col);
-            (guess_row, guess_col)
+            let direction = if rand::random() { Direction::Horizontal } else { Direction::Vertical };
+            println!("{:?}, {:?}, {:?}", guess_row, guess_col, direction);
+            (guess_row, guess_col, direction)
         } else {
             let mut guess = String::new(); 
             std::io::stdin().read_line(&mut guess).unwrap();
             let guess_list: Vec<usize> = guess.trim().split(",").map(|f|f.parse().unwrap()).collect();
-            (guess_list[0], guess_list[1])
+            if need_direction {
+                let direction = if guess_list[2] == 1 { Direction::Horizontal } else { Direction::Vertical };
+                (guess_list[0], guess_list[1], direction)
+            } else {
+                (guess_list[0], guess_list[1], Direction::None)
+            }
         }
     }
 }
@@ -80,13 +93,26 @@ fn main() {
     // 6. Repeat 3 - 5
     let mut board = Board{ cells: [[Cell::Empty; 10]; 10] };
     board.print();
-    board.cells[0][0] = Cell::PartialShip(Player::Computer);
-    board.cells[0][1] = Cell::PartialShip(Player::Computer);
-    board.cells[3][1] = Cell::PartialShip(Player::Human);
-    board.cells[4][1] = Cell::PartialShip(Player::Human);
+
+    // board.cells[0][0] = Cell::PartialShip(Player::Computer);
+    // board.cells[0][1] = Cell::PartialShip(Player::Computer);
+    // board.cells[3][1] = Cell::PartialShip(Player::Human);
+    // board.cells[4][1] = Cell::PartialShip(Player::Human);
     let mut current_player = Player::Human;
+    let (row, col, dir) = current_player.collect_input_location(true);
+    for i in 0..2 {
+        if i == 0 {
+            board.cells[row][col] = Cell::PartialShip(current_player);
+        } else if dir == Direction::Horizontal {
+            board.cells[row][col + i] = Cell::PartialShip(current_player);
+        } else if dir == Direction::Vertical {
+            board.cells[row + i][col] = Cell::PartialShip(current_player);
+        }
+    } 
+    board.print();
+    // board.cells[location_inputs[0], location_inputs[1]] = 
     loop {
-        let guess_list  = current_player.guess();
+        let guess_list  = current_player.collect_input_location(false);
         board.make_guess(guess_list.0, guess_list.1, current_player);
         board.print();
         if board.has_winner(current_player) {
